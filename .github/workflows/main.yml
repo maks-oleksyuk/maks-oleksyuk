@@ -1,0 +1,141 @@
+name: 👨🏼‍💻 Readme
+
+on:
+  push:
+
+  # Run automatically every week
+  schedule:
+    - cron: '0 20 * * 6'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    name: 🧹 Clean up GitHub repo
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      - name: 🗑 Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 0
+          keep_minimum_runs: 0
+
+  lint:
+    name: 🪄 Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🪄 Prettify code
+        uses: creyD/prettier_action@v4.3
+        with:
+          dry: true
+          prettier_options: '-c ./'
+
+  readme:
+    name: 🖼️ Generate images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 🛎️ Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Generate snake
+        uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          github_token: ${{ secrets.TOKEN }}
+          outputs: |
+            dist/snake/light.svg
+            dist/snake/dark.svg?palette=github-dark
+
+      - name: 🏆 Generate achievements (mobile)
+        # uses: lowlighter/metrics@latest
+        uses: stalomeow/metrics@projects-v2
+        timeout-minutes: 10
+        with:
+          base: ''
+          token: ${{ secrets.TOKEN }}
+          filename: achievements.mobile.svg
+          output_action: none
+          extras_css: |
+            .items-wrapper {padding-top: 40px;}
+            section>.field {display: none;}
+            .achievement {
+              align-items: center;
+              padding-inline: 18%;
+            }
+          plugin_achievements: yes
+
+      - name: 🏆 Generate achievements (tablet)
+        # uses: lowlighter/metrics@latest
+        uses: stalomeow/metrics@projects-v2
+        timeout-minutes: 10
+        with:
+          base: ''
+          token: ${{ secrets.TOKEN }}
+          filename: achievements.tablet.svg
+          output_action: none
+          extras_css: |
+            .items-wrapper {padding-top: 20px;}
+            section>.field {display: none;}
+            .achievement {align-items: center;}
+            svg.large .achievements.detailed {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            }
+            svg.large .largeable-width-half {
+              width: 70%;
+              padding-inline: 15%;
+            }
+          config_display: large
+          plugin_achievements: yes
+          plugin_achievements_ignored: manager
+
+      - name: 🏆 Generate achievements (desktop)
+        # uses: lowlighter/metrics@latest
+        uses: stalomeow/metrics@projects-v2
+        timeout-minutes: 10
+        with:
+          base: ''
+          token: ${{ secrets.TOKEN }}
+          filename: achievements.desktop.svg
+          output_action: none
+          extras_css: |
+            .items-wrapper {padding-top: 15px;}
+            section>.field {display: none;}
+            .achievement {align-items: center;}
+            svg.large .achievements.detailed {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            }
+            svg.large .largeable-width-half {
+              width: 90%;
+              padding-inline: 5%;
+            }
+          config_display: large
+          plugin_achievements: yes
+          plugin_achievements_ignored: manager
+
+      - name: ➡️ Move files
+        run: |
+          mkdir ./dist/metrics/
+          sudo mv /metrics_renders/* ./dist/metrics/
+
+      - name: 📤 Push to output branch
+        uses: crazy-max/ghaction-github-pages@v4
+        with:
+          build_dir: dist
+          target_branch: output
+          commit_message: 'Update generated images'
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
